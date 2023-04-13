@@ -1,0 +1,16 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.M_Weather" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/bs1</item>
+        <item name="colorPrimaryVariant">@color/bs1</item>
+        <item name="colorOnPrimary">@color/bs1</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/bs2</item>
+        <item name="colorSecondaryVariant">@color/bs2</item>
+        <item name="colorOnSecondary">@color/bs2</item>
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <!-- Customize your theme here. -->
+    </style>
+</resources>

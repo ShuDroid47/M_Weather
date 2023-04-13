@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">M_Weather</string>
+    <string name="api_key">c1654bd781d8983cd120864f3f3d683d</string>
+    <string name="celsius">\u2103</string>
+    <string name="fahrenheit">\u2109</string>
+    <string name="Location">Location</string>
+</resources>
