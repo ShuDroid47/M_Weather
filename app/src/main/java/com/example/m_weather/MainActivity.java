@@ -155,7 +155,6 @@ public class MainActivity extends AppCompatActivity implements WeatherApiListene
         SharedPreferences.Editor editor = sp.edit();
         editor.putString("Location",cName);
         editor.apply();
-
     }
 
     //checking for the search History.
