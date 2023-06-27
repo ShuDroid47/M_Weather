@@ -1,5 +1,7 @@
 package com.example.m_weather;
 
+import static android.content.ContentValues.TAG;
+
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -13,7 +15,9 @@ import android.Manifest;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -32,6 +36,10 @@ import com.example.m_weather.helpers.KelvinConverter;
 import com.example.m_weather.helpers.ViewUtils;
 import com.example.m_weather.helpers.WeatherApiListener;
 import com.example.m_weather.repos.ApiRepos;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.dynamiclinks.FirebaseDynamicLinks;
+import com.google.firebase.dynamiclinks.PendingDynamicLinkData;
 
 import java.security.Permission;
 
@@ -56,6 +64,8 @@ public class MainActivity extends AppCompatActivity implements WeatherApiListene
         model.listener = this;
         model.ApiKey = getString(R.string.api_key);
 
+        FirebaseDynamicLinks();
+
         if(CheckSelfPermission()) {
             ProcessData();
             mLayout.menuIconImageView.setOnClickListener(view -> {
@@ -66,6 +76,38 @@ public class MainActivity extends AppCompatActivity implements WeatherApiListene
         {
             ActivityCompat.requestPermissions(this,new String[] {Manifest.permission.ACCESS_FINE_LOCATION},2);
         }
+    }
+
+    private void FirebaseDynamicLinks() {
+        FirebaseDynamicLinks.getInstance()
+                .getDynamicLink(getIntent())
+                .addOnSuccessListener(this, new OnSuccessListener<PendingDynamicLinkData>() {
+                    @Override
+                    public void onSuccess(PendingDynamicLinkData pendingDynamicLinkData) {
+                        // Get deep link from result (may be null if no link is found)
+                        Uri deepLink = null;
+                        if (pendingDynamicLinkData != null) {
+                            deepLink = pendingDynamicLinkData.getLink();
+                            String linkLoc = deepLink.getQueryParameter("findloc");
+                            Toast.makeText(MainActivity.this, deepLink.toString(), Toast.LENGTH_LONG).show();
+                            Log.d("MainActivity.Class","Location from link = "+linkLoc);
+                        }
+
+
+                        // Handle the deep link. For example, open the linked content,
+                        // or apply promotional credit to the user's account.
+                        // ...
+
+                        // ...
+                    }
+                })
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w(TAG, "getDynamicLink:onFailure", e);
+                        Toast.makeText(getApplicationContext(),e.getMessage().toString(),Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 
     //TO Popup Menu Change the Metric Values.
