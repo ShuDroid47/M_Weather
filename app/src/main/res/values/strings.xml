@@ -4,4 +4,6 @@
     <string name="celsius">\u2103</string>
     <string name="fahrenheit">\u2109</string>
     <string name="Location">Location</string>
+    <string name="no_network">No Internet Connection\nConnect to a Network</string>
+    <string name="share_app">Share App</string>
 </resources>

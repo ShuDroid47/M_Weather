@@ -2,7 +2,6 @@ package com.example.m_weather;
 
 import static android.content.ContentValues.TAG;
 
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -10,38 +9,38 @@ import androidx.appcompat.widget.PopupMenu;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.databinding.DataBindingUtil;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.ContextMenu;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.example.m_weather.databinding.ActivityMainBinding;
-import com.example.m_weather.databinding.DialogSearchBinding;
 import com.example.m_weather.datamodels.WeatherDataModel;
 import com.example.m_weather.datamodels.WeatherResponse;
+import com.example.m_weather.helpers.CheckNetworkConnection;
 import com.example.m_weather.helpers.KelvinConverter;
+import com.example.m_weather.helpers.ShareUtils;
 import com.example.m_weather.helpers.ViewUtils;
 import com.example.m_weather.helpers.WeatherApiListener;
-import com.example.m_weather.repos.ApiRepos;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.dynamiclinks.FirebaseDynamicLinks;
 import com.google.firebase.dynamiclinks.PendingDynamicLinkData;
 
 import java.security.Permission;
+
+import io.branch.referral.Branch;
 
 public class MainActivity extends AppCompatActivity implements WeatherApiListener {
 
@@ -54,28 +53,66 @@ public class MainActivity extends AppCompatActivity implements WeatherApiListene
     WeatherDataModel tData;
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        Branch.sessionBuilder(this).withCallback((branchUniversalObject, linkProperties, error) -> {
+            if (error != null) {
+                Log.e("BranchSDK_Tester", "branch init failed. Caused by -" + error.getMessage());
+            } else {
+                Log.i("BranchSDK_Tester", "branch init complete!");
+                if (branchUniversalObject != null) {
+                    Log.i("BranchSDK_Tester", "title " + branchUniversalObject.getTitle());
+                    Log.i("BranchSDK_Tester", "CanonicalIdentifier " + branchUniversalObject.getCanonicalIdentifier());
+                    Log.i("BranchSDK_Tester", "metadata " + branchUniversalObject.getContentMetadata());
+                }
+                if (linkProperties != null) {
+                    Log.i("BranchSDK_Tester", "Channel " + linkProperties.getChannel());
+                    Log.i("BranchSDK_Tester", "control params " + linkProperties.getControlParams());
+                }
+            }
+        });
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         wListener = this;
-        model = new MainViewModel();
+        model = new ViewModelProvider(this).get(MainViewModel.class);
         utils = new ViewUtils(this);
         mLayout = DataBindingUtil.setContentView(this,R.layout.activity_main);
         mLayout.setModel(model);
         model.listener = this;
         model.ApiKey = getString(R.string.api_key);
-
-        FirebaseDynamicLinks();
-
+        callNetworkConnection();
         if(CheckSelfPermission()) {
             ProcessData();
             mLayout.menuIconImageView.setOnClickListener(view -> {
                 SetMenu();
             });
+            mLayout.shareIconImageView.setOnClickListener(onClick->{
+                startSharingProcess();
+            });
+            Branch.enableTestMode();//Branch Logging for Debugging
+            Branch.getAutoInstance(this);//Branch Object Initialization
+            FirebaseDynamicLinks();
+
         }
         else
         {
             ActivityCompat.requestPermissions(this,new String[] {Manifest.permission.ACCESS_FINE_LOCATION},2);
         }
+    }
+
+    private void callNetworkConnection() {
+        new CheckNetworkConnection(getApplication())
+                .observe(this, isAvailable->{
+                    if(!isAvailable){
+                        utils.ShowNoNetworkDialog();
+                    }
+                    else{
+                        utils.dismissNetworkDialog();
+                    }
+                });
     }
 
     private void FirebaseDynamicLinks() {
@@ -130,11 +167,49 @@ public class MainActivity extends AppCompatActivity implements WeatherApiListene
                             SetFahrenheitData();
                             break;
                         }
+                    case R.id.menu_share:
+                        startSharingProcess();
+                        break;
                 }
                 return true;
             }
         });
         menu.show();
+    }
+
+    private void startSharingProcess() {
+        if(checkStoragePermission())
+            processShareApplication();
+        else
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.WRITE_EXTERNAL_STORAGE},3);
+    }
+
+    private void processShareApplication() {
+//        Instacapture.INSTANCE.capture(this, new ScreenCaptureListener() {
+//            @Override
+//            public void onCaptureStarted() {
+//
+//            }
+//
+//            @Override
+//            public void onCaptureFailed(@NonNull Throwable throwable) {
+//
+//            }
+//
+//            @Override
+//            public void onCaptureComplete(@NonNull Bitmap bitmap) {
+//                ShareUtils.store(this,bitmap,"M_Weather");
+//            }
+//        });
+
+    }
+
+    private boolean checkStoragePermission() {
+        if((ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)!= PackageManager.PERMISSION_GRANTED)){
+            return false;
+        }
+        else
+            return true;
     }
 
     //Get Data from the Server
@@ -153,18 +228,23 @@ public class MainActivity extends AppCompatActivity implements WeatherApiListene
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == 2 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             ProcessData();
-        } else {
+        } else if(requestCode ==3 && grantResults.length>0 && grantResults[1] == PackageManager.PERMISSION_GRANTED){
+            model.processShareApplication();
+        }
+        else{
             Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show();
             this.finish();
         }
+
     }
 
     private boolean CheckSelfPermission() {
-        if((ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)!= PackageManager.PERMISSION_GRANTED)){
+        if((ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)!= PackageManager.PERMISSION_GRANTED)&&(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)!= PackageManager.PERMISSION_GRANTED)){
             return false;
         }
-        else
+        else {
             return true;
+        }
     }
 
 //Dialog popups for the new Application Install... Due to no location history.
@@ -218,7 +298,7 @@ public class MainActivity extends AppCompatActivity implements WeatherApiListene
         tData = new WeatherDataModel();
         tData.setHumidity(weatherData.getMain().getHumidity().toString()+"%");
         tData.setPressure(weatherData.getMain().getPressure().toString()+" Pa");
-        tData.setVisibility(String.format("%.2f",(double) weatherData.getVisibility()/1000)+"Km");
+        tData.setVisibility(String.format("%.2f", (double) weatherData.getVisibility() / 1000) + "Km");
         tData.setWindspeed(weatherData.getWind().getSpeed().toString()+"m/s");
         if(isCelsius){
             SetCelsiusData();
